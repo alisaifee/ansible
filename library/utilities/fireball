@@ -209,9 +209,22 @@ def serve(module, password, port, minutes):
 
     key = AesKey.Read(password)
 
+    fb_start_time = time.time()
+    fb_time_extension_ratio = 0.01
+    fb_time_extended = 0
     while True:
 
         data = socket.recv()
+        # if the timer is about to expire, and commands are still being received - extend
+        # the timer by at most the original duration.
+        if (time.time() - fb_start_time) >= (0.9 * ((60 * minutes)+fb_time_extended)):
+          # atleast extend by 10 seconds.
+          extension = max(10,fb_time_extension_ratio * minutes * 60)
+          fb_time_extended += extension
+          fb_time_extension_ratio **= 0.5
+          log("timer is about to expire. renewing for %ds" % ( extension ))
+          signal.setitimer(signal.ITIMER_REAL, 0)
+          signal.setitimer(signal.ITIMER_REAL, extension)
 
         try:
             data = key.Decrypt(data)
